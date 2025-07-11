@@ -1,4 +1,3 @@
-
 ---
 name: Build IPC and Upload to S3
 
@@ -49,4 +48,4 @@ jobs:
           aws-region: eu-west-1
 
       - name: Upload to S3
-          run: aws s3 sync build/ s3://edge-to-cloud-bucket/build-artifacts/github-sdv-poc-msp-ipc/ --region eu-west-1
+        run: aws s3 sync build/ s3://edge-to-cloud-bucket/build-artifacts/github-sdv-poc-msp-ipc/ --region eu-west-1
