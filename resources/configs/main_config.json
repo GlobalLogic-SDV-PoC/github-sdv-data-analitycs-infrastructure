@@ -1,0 +1,20 @@
+{
+    "ipc": {
+        "shmem_name": "SDV-POC",
+        "ip" : "127.0.0.1",
+        "port" : 5555,
+        "max_listen_connections": 2147483647,
+        "reuse_address": true,
+        "enable_connection_aborted": false,
+        "header_buffer_size": 2000,
+        "body_buffer_size": 5000
+    },
+    "iot": {
+        "endpoint": "a4b7oei3jq94y-ats.iot.us-east-2.amazonaws.com",
+         "certificate": "/home/orin/iot_gateway/certificate.pem.crt",
+        "private": "/home/orin/iot_gateway/private.pem.key",
+        "root": "/home/orin/iot_gateway/AmazonRootCA1.pem",
+        "clientId": "nvidia-edge-to-cloud-device",
+        "response_topic": "iot_bridge/send_data/response"
+    }
+}
