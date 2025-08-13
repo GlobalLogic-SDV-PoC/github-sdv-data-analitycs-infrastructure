@@ -23,7 +23,7 @@ void signal_handler(int signal)
 int main()
 {
     auto aws_client = std::make_shared<aws_iot::ClientIot>();
-    std::ifstream config_file("/home/orin/iot_gateway/main_config.json");
+    std::ifstream config_file("/nvidia-hpc/e2c-services/iot_gateway/main_config.json");
 
     iotb::App app(aws_client, nlohmann::json::parse(config_file));
     std::signal(SIGINT, signal_handler);
@@ -39,7 +39,7 @@ int main()
         signal (sig, SIG_DFL);
         raise (sig);
     };
-    app.initDefaultLogger("/home/orin/iot_gateway/logs_aws.txt", 1'000'000, 5, 5s);
+    app.initDefaultLogger("/nvidia-hpc/e2c-services/iot_gateway/logs_aws.txt", 1'000'000, 5, 5s);
     app.init();
     is_running = true;
     app.start();

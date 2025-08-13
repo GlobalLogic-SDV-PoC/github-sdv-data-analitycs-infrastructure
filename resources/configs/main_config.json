@@ -11,9 +11,9 @@
     },
     "iot": {
         "endpoint": "a4b7oei3jq94y-ats.iot.us-east-2.amazonaws.com",
-         "certificate": "/home/orin/iot_gateway/certificate.pem.crt",
-        "private": "/home/orin/iot_gateway/private.pem.key",
-        "root": "/home/orin/iot_gateway/AmazonRootCA1.pem",
+        "certificate": "/nvidia-hpc/e2c-services/configs/certificate.pem.crt",
+        "private": "/nvidia-hpc/e2c-services/configs/private.pem.key",
+        "root": "/nvidia-hpc/e2c-services/configs/AmazonRootCA1.pem",
         "clientId": "nvidia-edge-to-cloud-device",
         "response_topic": "iot_bridge/send_data/response"
     }
