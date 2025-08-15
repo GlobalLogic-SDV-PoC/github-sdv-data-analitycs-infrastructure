@@ -1,11 +1,11 @@
 ---
-name: Build IPC and Upload to S3
+name: Build aws-iot-bridge and Upload to S3
 
 on:
   pull_request:
     branches: [main]
     types: [closed]
-    
+
 permissions:
   id-token: write
   contents: read
@@ -21,39 +21,27 @@ jobs:
         with:
           submodules: recursive
 
-      # - name: Install dependencies
-      #   run: |
-      #     sudo apt update
-      #     sudo apt install -y build-essential libtool autoconf unzip wget \
-      #       libssl-dev libssh-dev ninja-build pkg-config
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libtool autoconf unzip wget \
+            libssl-dev libssh-dev ninja-build pkg-config cmake
 
-      # - name: Install CMake 3.29.2
-      #   run: |
-      #     version=3.29
-      #     build=2
-      #     mkdir ~/temp && cd ~/temp
-      #     wget https://cmake.org/files/v$version/cmake-$version.$build.tar.gz
-      #     tar -xzf cmake-$version.$build.tar.gz
-      #     cd cmake-$version.$build
-      #     ./bootstrap
-      #     make -j$(nproc)
-      #     sudo make install
-
-      # - name: Build libipc.a
-      #   run: |
-      #     mkdir build && cd build
-      #     cmake .. -DIPC_ENABLE_TESTING=OFF
-      #     make -j$(nproc)
+      - name: Build aws-iot-bridge
+        run: |
+          ./build.sh
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::203647640528:role/GitHubActionsArtifactUploaderRole
           aws-region: eu-west-1
-      
-      - name: Create test file
-        run: |
-          touch test_file
 
-      - name: Upload to S3
-        run: aws s3 sync test_file s3://edge-to-cloud-bucket/build-artifacts/github-sdv-poc-msp-ipc/ --region eu-west-1
+      - name: Upload aws-iot-bridge to S3
+        run: |
+          if [ -f build/aws-iot-bridge ]; then
+            aws s3 cp build/aws-iot-bridge s3://nvidia-edge-to-cloud-bucket/build-artifacts/aws-iot-bridge \
+              --region us-east-2
+          else
+            echo "aws-iot-bridge not found, skipping upload."
+          fi
