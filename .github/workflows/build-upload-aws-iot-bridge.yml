@@ -1,0 +1,47 @@
+---
+name: Build aws-iot-bridge and Upload to S3
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-upload:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libtool autoconf unzip wget \
+            libssl-dev libssh-dev ninja-build pkg-config cmake
+
+      - name: Build aws-iot-bridge
+        run: |
+          ./build.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::203647640528:role/GitHubActionsArtifactUploaderRole
+          aws-region: eu-west-1
+
+      - name: Upload aws-iot-bridge to S3
+        run: |
+          if [ -f build/aws-iot-bridge ]; then
+            aws s3 cp build/aws-iot-bridge s3://nvidia-edge-to-cloud-bucket/build-artifacts/aws-iot-bridge \
+              --region us-east-2
+          else
+            echo "aws-iot-bridge not found, skipping upload."
+          fi
