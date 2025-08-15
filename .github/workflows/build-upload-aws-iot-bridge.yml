@@ -41,7 +41,7 @@ jobs:
       - name: Upload aws-iot-bridge to S3
         run: |
           if [ -f ./build/aws_iot_bridge_app ]; then
-            aws s3 cp build/aws-iot-bridge s3://nvidia-edge-to-cloud-bucket/build-artifacts/aws-iot-bridge \
+            aws s3 cp ./build/aws_iot_bridge_app s3://nvidia-edge-to-cloud-bucket/build-artifacts/aws_iot_bridge_app \
               --region us-east-2
           else
             echo "aws-iot-bridge not found, skipping upload."
