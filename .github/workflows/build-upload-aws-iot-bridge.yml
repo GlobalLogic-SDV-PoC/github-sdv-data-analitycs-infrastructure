@@ -31,7 +31,7 @@ jobs:
         run: |
           ./build.sh
 
-      - name: Configure AWS credentials (OIDC → AssumeRole)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::410849528398:role/GitHubActionsArtifactUploaderRole
