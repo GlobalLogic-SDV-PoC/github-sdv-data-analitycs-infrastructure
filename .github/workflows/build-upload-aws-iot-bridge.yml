@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Install Git for checkout
         run: |
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y git ca-certificates
 
@@ -30,6 +32,7 @@ jobs:
       - name: Install build deps
         run: |
           set -e
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y  \
             build-essential libtool autoconf unzip wget curl \
