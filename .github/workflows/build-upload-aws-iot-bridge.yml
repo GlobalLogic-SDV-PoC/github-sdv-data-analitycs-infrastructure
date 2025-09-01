@@ -14,6 +14,7 @@ jobs:
   build-and-upload:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    container: ubuntu:20.04
     steps:
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
@@ -25,9 +26,8 @@ jobs:
         run: |
           set -e
           sudo apt update
-          sudo apt install -y build-essential ninja-build pkg-config \
-                              gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-                              python3-pip file binutils qemu-user-static binfmt-support
+          sudo apt update
+          sudo apt install build-essential libtool autoconf unzip wget libssl-dev libssh-dev ninja-build curl libcurl4-openssl-dev
       
       - name: Install CMake via pip (3.17)
         run: |
