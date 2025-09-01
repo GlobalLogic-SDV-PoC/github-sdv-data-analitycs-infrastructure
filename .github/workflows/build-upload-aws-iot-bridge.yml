@@ -27,12 +27,12 @@ jobs:
           sudo apt update
           sudo apt install -y build-essential ninja-build pkg-config \
                               gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-                              python3-pip file binutils
+                              python3-pip file binutils qemu-user-static
       
       - name: Install CMake via pip (>=3.17)
         run: |
           set -e
-          python3 -m pip install --user "cmake>=3.17"
+          python3 -m pip install --user "cmake==3.17"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           which cmake
           cmake --version
