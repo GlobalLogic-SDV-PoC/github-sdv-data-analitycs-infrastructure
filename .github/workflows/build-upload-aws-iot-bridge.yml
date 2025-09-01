@@ -2,6 +2,10 @@
 name: Build aws-iot-bridge and Upload to S3
 
 on:
+  push:
+    branches:
+      - SDV-*                   
+      
   pull_request:
     branches: [main]
     types: [closed]
