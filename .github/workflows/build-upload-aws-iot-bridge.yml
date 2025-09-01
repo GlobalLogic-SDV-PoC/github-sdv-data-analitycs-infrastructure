@@ -16,19 +16,19 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
-      - name: Point focal to old-releases
+      - name: Point focal to old-releases 
         run: |
           set -e
-          pattern='s|https\?://(archive|security)\.ubuntu\.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g'
-
-          sed -i -E "$pattern" /etc/apt/sources.list || true
-          if ls /etc/apt/sources.list.d/*.list >/dev/null 2>&1; then
-            for f in /etc/apt/sources.list.d/*.list; do
-              sed -i -E "$pattern" "$f"
-            done
-          fi
+          cat >/etc/apt/sources.list <<'EOF'
+          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal main restricted universe multiverse
+          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal-updates main restricted universe multiverse
+          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal-security main restricted universe multiverse
+          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal-backports main restricted universe multiverse
+          EOF
 
           apt-get clean
+          rm -rf /var/lib/apt/lists/*
+          dpkg --add-architecture arm64
           apt-get update
           
       - name: Install Git for checkout
