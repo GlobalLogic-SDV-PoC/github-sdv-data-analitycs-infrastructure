@@ -16,6 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+      - name: Point focal to old-releases
+        run: |
+          set -e
+          pattern='s|https\?://(archive|security)\.ubuntu\.com/ubuntu|http://old-releases.ubuntu.com/ubuntu|g'
+
+          sed -i -E "$pattern" /etc/apt/sources.list || true
+          if ls /etc/apt/sources.list.d/*.list >/dev/null 2>&1; then
+            for f in /etc/apt/sources.list.d/*.list; do
+              sed -i -E "$pattern" "$f"
+            done
+          fi
+
+          apt-get clean
+          apt-get update
+          
       - name: Install Git for checkout
         run: |
           set -e
