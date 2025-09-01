@@ -16,18 +16,32 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+      - name: Install Git for checkout
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git ca-certificates
+
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
         with:
           submodules: recursive
           token: ${{ secrets.GH_PAT }}
 
-      - name: Install build deps & aarch64 toolchain
+      - name: Install build deps
         run: |
           set -e
           sudo apt update
-          sudo apt update
-          sudo apt install build-essential libtool autoconf unzip wget libssl-dev libssh-dev ninja-build curl libcurl4-openssl-dev git ca-certificates
+          apt-get install -y  \
+            build-essential libtool autoconf unzip wget curl \
+            ninja-build pkg-config file binutils \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            qemu-user-static binfmt-support python3 python3-pip ca-certificates
+          
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            libc6:arm64 libstdc++6:arm64 zlib1g:arm64 \
+            libssl-dev:arm64 libssh-dev:arm64 libcurl4-openssl-dev:arm64
       
       - name: Install CMake via pip (3.17)
         run: |
