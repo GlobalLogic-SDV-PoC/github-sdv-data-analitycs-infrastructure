@@ -16,19 +16,18 @@ jobs:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
-      - name: Point focal to old-releases 
+      - name: Enable arm64 from ports.ubuntu.com
         run: |
           set -e
-          cat >/etc/apt/sources.list <<'EOF'
-          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal main restricted universe multiverse
-          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal-updates main restricted universe multiverse
-          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal-security main restricted universe multiverse
-          deb [arch=amd64,arm64] http://old-releases.ubuntu.com/ubuntu focal-backports main restricted universe multiverse
+          dpkg --add-architecture arm64
+
+          cat >/etc/apt/sources.list.d/ubuntu-ports-arm64.list <<'EOF'
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-updates main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-security main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-backports main restricted universe multiverse
           EOF
 
-          apt-get clean
-          rm -rf /var/lib/apt/lists/*
-          dpkg --add-architecture arm64
           apt-get update
           
       - name: Install Git for checkout
@@ -49,14 +48,12 @@ jobs:
           set -e
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get install -y  \
+          apt-get install -y  --no-install-recommends \
             build-essential libtool autoconf unzip wget curl \
             ninja-build pkg-config file binutils \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             qemu-user-static binfmt-support python3 python3-pip ca-certificates
           
-          dpkg --add-architecture arm64
-          apt-get update
           apt-get install -y --no-install-recommends \
             libc6:arm64 libstdc++6:arm64 zlib1g:arm64 \
             libssl-dev:arm64 libssh-dev:arm64 libcurl4-openssl-dev:arm64
