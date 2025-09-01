@@ -15,78 +15,112 @@ permissions:
   contents: read
 
 jobs:
-  build-and-upload:
-    # if: github.event.pull_request.merged == true
+  build-in-arm64-vm-and-upload:
     runs-on: ubuntu-latest
-    container: ubuntu:20.04
+    timeout-minutes: 90
     steps:
-      - name: Enable arm64 from ports.ubuntu.com
-        run: |
-          set -e
-          dpkg --add-architecture arm64
-
-          cat >/etc/apt/sources.list.d/ubuntu-ports-arm64.list <<'EOF'
-          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal main restricted universe multiverse
-          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-updates main restricted universe multiverse
-          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-security main restricted universe multiverse
-          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-backports main restricted universe multiverse
-          EOF
-
-          apt-get update
-
-          echo "== Architectures ==" 
-          dpkg --print-architecture
-          dpkg --print-foreign-architectures
-          echo "== Sources =="
-          cat /etc/apt/sources.list || true
-          ls -l /etc/apt/sources.list.d || true
-          echo "== Policy (first 120 lines) =="
-          apt-cache policy | sed -n '1,120p'
-          echo "== libc6:arm64 policy (first 80 lines) =="
-          apt-cache policy libc6:arm64 | sed -n '1,80p'
-          
-      - name: Install Git for checkout
-        run: |
-          set -e
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y git ca-certificates
-
-      - name: Checkout repository with submodules
+      - name: Checkout (with submodules)
         uses: actions/checkout@v4
         with:
           submodules: recursive
           token: ${{ secrets.GH_PAT }}
 
-      - name: Install build deps
+      - name: Install QEMU & tooling on host
         run: |
-          set -e
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y  --no-install-recommends \
-            build-essential libtool autoconf unzip wget curl \
-            ninja-build pkg-config file binutils \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-            qemu-user-static binfmt-support python3 python3-pip ca-certificates
-          
-          apt-get install -y --no-install-recommends \
-            libc6:arm64 libstdc++6:arm64 zlib1g:arm64 \
-            libssl-dev:arm64 libssh-dev:arm64 libcurl4-openssl-dev:arm64
-      
-      - name: Install CMake via pip (3.17)
-        run: |
-          set -e
-          python3 -m pip install --user "cmake==3.17"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          which cmake
-          cmake --version
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-system-aarch64 qemu-efi-aarch64 cloud-image-utils qemu-utils \
+            openssh-client rsync
 
-      - name: Build aws-iot-bridge
-        env:
-          CC: aarch64-linux-gnu-gcc
-          CXX: aarch64-linux-gnu-g++
+      - name: Download Ubuntu 20.04 ARM64 cloud image
         run: |
-          ./build.sh
+          set -euxo pipefail
+          curl -L -o focal-arm64.qcow2 \
+            https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-arm64.img
+          qemu-img resize focal-arm64.qcow2 +8G
+
+      - name: Create cloud-init seed (SSH key, hostname)
+        run: |
+          set -euxo pipefail
+          ssh-keygen -t ed25519 -f id_ed25519 -N "" -C ci-vm
+          printf 'instance-id: iid-local01\nlocal-hostname: aarch64-ci\n' > meta-data
+          cat > user-data <<'EOF'
+          #cloud-config
+          users:
+            - default
+            - name: ubuntu
+              sudo: ALL=(ALL) NOPASSWD:ALL
+              shell: /bin/bash
+              ssh_authorized_keys:
+                - SSH_PUBKEY_PLACEHOLDER
+          package_update: true
+          EOF
+          sed -i "s|SSH_PUBKEY_PLACEHOLDER|$(sed '1q' id_ed25519.pub)|" user-data
+          cloud-localds -v seed.img user-data meta-data
+
+      - name: Boot ARM64 VM
+        run: |
+          set -euxo pipefail
+          cp /usr/share/AAVMF/AAVMF_VARS.fd AAVMF_VARS.fd
+          nohup qemu-system-aarch64 \
+            -machine virt \
+            -cpu cortex-a72 \
+            -accel tcg,thread=multi \
+            -smp 4 -m 4096 \
+            -nographic \
+            -drive if=pflash,format=raw,readonly=on,file=/usr/share/AAVMF/AAVMF_CODE.fd \
+            -drive if=pflash,format=raw,file=AAVMF_VARS.fd \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -drive if=none,file=focal-arm64.qcow2,format=qcow2,id=hd0 \
+            -device virtio-blk-pci,drive=hd0 \
+            -drive if=virtio,file=seed.img,format=raw \
+            > vm.log 2>&1 &
+          # wait for SSH
+          for i in {1..120}; do
+            if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                 -i id_ed25519 -p 2222 ubuntu@127.0.0.1 'echo ok' 2>/dev/null; then
+              echo "VM is up"; break; fi; sleep 2; done
+
+      - name: Install deps in VM
+        run: |
+          set -euxo pipefail
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -i id_ed25519 -p 2222 ubuntu@127.0.0.1 '
+            set -euxo pipefail
+            sudo apt-get update
+            sudo apt-get install -y build-essential libtool autoconf unzip wget curl \
+              libssl-dev libssh-dev ninja-build pkg-config file binutils \
+              gcc g++ python3-pip
+            sudo snap install cmake --classic --channel=3.29/stable
+            cmake --version
+            '
+
+      - name: Copy repo into VM
+        run: |
+          set -euxo pipefail
+          rsync -az --delete -e "ssh -i id_ed25519 -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+            ./ ubuntu@127.0.0.1:~/repo/
+
+      - name: Build app inside VM 
+        run: |
+          set -euxo pipefail
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -i id_ed25519 -p 2222 ubuntu@127.0.0.1 '
+            set -euxo pipefail
+            export PATH=/usr/local/bin:$PATH   
+            export CMAKE_GENERATOR=Ninja          
+            cd ~/repo
+            ./build.sh
+            echo "== Verify binary arch =="
+            test -f build/aws_iot_bridge_app
+            file build/aws_iot_bridge_app || true
+            readelf -h build/aws_iot_bridge_app | egrep "Machine|Class" || true
+          '
+          mkdir -p out
+          scp -i id_ed25519 -P 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            ubuntu@127.0.0.1:~/repo/build/aws_iot_bridge_app ./out/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -94,15 +128,19 @@ jobs:
           role-to-assume: arn:aws:iam::410849528398:role/GitHubActionsArtifactUploaderRole
           aws-region: us-east-2
 
-      - name: Upload aws-iot-bridge to S3
+      - name: Upload binary and config to S3
+        env:
+          S3_PREFIX: s3://nvidia-edge-to-cloud-bucket/build_artifacts/nvidia-aws-iot-bridge
         run: |
-          if [ -f ./build/aws_iot_bridge_app ]; then
-            aws s3 cp ./build/aws_iot_bridge_app \
-              s3://nvidia-edge-to-cloud-bucket/build_artifacts/nvidia-aws-iot-bridge/aws_iot_bridge_app \
-              --region us-east-2
-            aws s3 cp ./resources/configs/main_config.json \
-              s3://nvidia-edge-to-cloud-bucket/build_artifacts/nvidia-aws-iot-bridge/ \
-              --region us-east-2
-          else
-            echo "aws-iot-bridge not found, skipping upload."
-          fi
+          set -euxo pipefail
+          test -f ./out/aws_iot_bridge_app
+          aws s3 cp ./out/aws_iot_bridge_app "$S3_PREFIX/aws_iot_bridge_app"
+          test -f ./resources/configs/main_config.json
+          aws s3 cp ./resources/configs/main_config.json \
+            "$S3_PREFIX/main_config.json" --content-type application/json
+
+      - name: Shutdown VM
+        run: |
+          pkill -f qemu-system-aarch64 || true
+          sleep 2
+          pkill -9 -f qemu-system-aarch64 || true
