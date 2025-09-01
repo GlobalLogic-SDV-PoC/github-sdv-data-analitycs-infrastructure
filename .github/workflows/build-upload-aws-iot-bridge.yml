@@ -27,7 +27,7 @@ jobs:
           set -e
           sudo apt update
           sudo apt update
-          sudo apt install build-essential libtool autoconf unzip wget libssl-dev libssh-dev ninja-build curl libcurl4-openssl-dev
+          sudo apt install build-essential libtool autoconf unzip wget libssl-dev libssh-dev ninja-build curl libcurl4-openssl-dev git ca-certificates
       
       - name: Install CMake via pip (3.17)
         run: |
