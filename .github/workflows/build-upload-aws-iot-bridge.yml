@@ -5,10 +5,10 @@ on:
   push:
     branches:
       - SDV-*                   
-      
-  pull_request:
-    branches: [main]
-    types: [closed]
+
+  # pull_request:
+  #   branches: [main]
+  #   types: [closed]
 
 permissions:
   id-token: write
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-and-upload:
-    if: github.event.pull_request.merged == true
+    # if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
@@ -33,6 +33,17 @@ jobs:
           EOF
 
           apt-get update
+
+          echo "== Architectures ==" 
+          dpkg --print-architecture
+          dpkg --print-foreign-architectures
+          echo "== Sources =="
+          cat /etc/apt/sources.list || true
+          ls -l /etc/apt/sources.list.d || true
+          echo "== Policy (first 120 lines) =="
+          apt-cache policy | sed -n '1,120p'
+          echo "== libc6:arm64 policy (first 80 lines) =="
+          apt-cache policy libc6:arm64 | sed -n '1,80p'
           
       - name: Install Git for checkout
         run: |
