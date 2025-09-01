@@ -18,8 +18,13 @@ jobs:
     steps:
       - name: Install Git for checkout
         run: |
+<<<<<<< HEAD
+          apt-get update
+          apt-get install -y git ca-certificates
+=======
           sudo apt-get update
           sudo apt-get install -y git ca-certificates
+>>>>>>> main
 
       - name: Checkout repository with submodules
         uses: actions/checkout@v4
@@ -30,7 +35,11 @@ jobs:
       - name: Install build deps
         run: |
           set -e
+<<<<<<< HEAD
+          apt-get update
+=======
           sudo apt update
+>>>>>>> main
           apt-get install -y  \
             build-essential libtool autoconf unzip wget curl \
             ninja-build pkg-config file binutils \
