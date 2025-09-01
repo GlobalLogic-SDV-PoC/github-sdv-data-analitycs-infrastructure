@@ -21,13 +21,26 @@ jobs:
           submodules: recursive
           token: ${{ secrets.GH_PAT }}
 
-      - name: Install dependencies
+      - name: Install build deps & aarch64 toolchain
         run: |
+          set -e
           sudo apt update
-          sudo apt install -y build-essential libtool autoconf unzip wget \
-            libssl-dev libssh-dev ninja-build pkg-config cmake
+          sudo apt install -y build-essential ninja-build pkg-config \
+                              gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+                              python3-pip file binutils
+      
+      - name: Install CMake via pip (>=3.17)
+        run: |
+          set -e
+          python3 -m pip install --user "cmake>=3.17"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          which cmake
+          cmake --version
 
       - name: Build aws-iot-bridge
+        env:
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
         run: |
           ./build.sh
 
@@ -41,7 +54,10 @@ jobs:
         run: |
           if [ -f ./build/aws_iot_bridge_app ]; then
             aws s3 cp ./build/aws_iot_bridge_app \
-              s3://nvidia-edge-to-cloud-bucket/build_artifacts/aws_iot_bridge_app \
+              s3://nvidia-edge-to-cloud-bucket/build_artifacts/nvidia-aws-iot-bridge/aws_iot_bridge_app \
+              --region us-east-2
+            aws s3 cp ./resources/configs/main_config.json \
+              s3://nvidia-edge-to-cloud-bucket/build_artifacts/nvidia-aws-iot-bridge/ \
               --region us-east-2
           else
             echo "aws-iot-bridge not found, skipping upload."
